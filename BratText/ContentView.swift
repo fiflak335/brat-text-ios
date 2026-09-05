@@ -600,8 +600,6 @@ struct LyricCardItem: Identifiable, Codable {
     }
 }
 
-extension BratText: Codable {}
-
 // MARK: - History Store
 
 extension SettingsStore {

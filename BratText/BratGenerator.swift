@@ -1,6 +1,6 @@
 import Foundation
 
-struct BratText: Identifiable {
+struct BratText: Identifiable, Codable {
     let id = UUID()
     let original: String
     let viral: String
