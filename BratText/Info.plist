@@ -21,11 +21,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Aplikacja używa mikrofonu, aby nagrać Twoje audio do wygenerowania viralowych brat tekstów.</string>
+	<string>brat text uses the mic to record your audio and turn it into viral lyric cards.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Aplikacja zapisuje gotowy obraz z lyrics do Twojej galerii.</string>
+	<string>brat text saves your finished lyric card image to your photo gallery.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Aplikacja używa rozpoznawania mowy, aby przetworzyć Twoje audio na tekst.</string>
+	<string>brat text uses on-device speech recognition to turn your audio into lyrics.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

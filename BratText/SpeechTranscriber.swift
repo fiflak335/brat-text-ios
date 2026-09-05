@@ -13,55 +13,58 @@ enum TranscriptionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notAuthorized:
-            return "Brak dostępu do rozpoznawania mowy. Włącz je w Ustawieniach → Prywatność."
+            return NSLocalizedString("Speech recognition permission is off. Enable it in Settings → Privacy.", comment: "")
         case .unavailable:
-            return "Rozpoznawanie mowy jest niedostępne na tym urządzeniu."
+            return NSLocalizedString("Speech recognition is not available on this device.", comment: "")
         case .noAudioTrack:
-            return "Ten film nie ma ścieżki dźwiękowej."
+            return NSLocalizedString("This video has no audio track.", comment: "")
         case .conversionFailed:
-            return "Nie udało się przetworzyć audio. Spróbuj innego pliku."
+            return NSLocalizedString("Couldn't process the audio. Try a different file.", comment: "")
         case .noResult:
-            return "Nie wykryto mowy w nagraniu. Sprawdź, czy jest wyraźna."
+            return NSLocalizedString("No speech detected. Make sure the clip is clear.", comment: "")
         case .timedOut:
-            return "Przekroczono czas transkrypcji. Spróbuj krótszego klipu."
+            return NSLocalizedString("Transcription timed out. Try a shorter clip.", comment: "")
         }
     }
 }
 
+/// All published state and resumes happen on the main actor —
+/// mutating SwiftUI state from the Speech callback thread is what crashed "generate".
+@MainActor
 final class SpeechTranscriber: ObservableObject {
     @Published var isTranscribing = false
-
-    // MARK: - Public
 
     func transcribe(url: URL) async throws -> String {
         isTranscribing = true
         defer { isTranscribing = false }
 
-        let authorized = await requestPermission()
-        guard authorized else { throw TranscriptionError.notAuthorized }
+        guard await requestPermission() else { throw TranscriptionError.notAuthorized }
 
-        // 1. If video, extract audio track.
-        let audioURL: URL
+        // 1. Videos first get their audio track extracted to m4a.
+        let sourceURL: URL
         let videoExts = ["mp4", "mov", "m4v", "avi", "mkv", "3gp", "webm"]
         if videoExts.contains(url.pathExtension.lowercased()) {
-            audioURL = try await extractAudio(from: url)
+            sourceURL = try await extractAudio(from: url)
         } else {
-            audioURL = url
+            sourceURL = url
         }
-
-        // 2. Convert to WAV PCM 16kHz mono — most reliable for SFSpeechRecognizer.
-        let wavURL = try convertToWav(source: audioURL)
-
         defer {
-            if audioURL != url { try? FileManager.default.removeItem(at: audioURL) }
-            try? FileManager.default.removeItem(at: wavURL)
+            if sourceURL != url {
+                try? FileManager.default.removeItem(at: sourceURL)
+            }
         }
 
-        // 3. Recognize from WAV.
+        // 2. Convert to WAV PCM 16 kHz mono off the main thread.
+        let wavURL = try await Task.detached(priority: .userInitiated) {
+            try AudioConverterHelper.convertToWav(source: sourceURL)
+        }.value
+        defer { try? FileManager.default.removeItem(at: wavURL) }
+
+        // 3. Recognize from the WAV file.
         return try await recognize(from: wavURL)
     }
 
-    // MARK: - Video audio extraction
+    // MARK: - Video → audio extraction
 
     private func extractAudio(from url: URL) async throws -> URL {
         let asset = AVURLAsset(url: url)
@@ -70,7 +73,6 @@ final class SpeechTranscriber: ObservableObject {
 
         let exportURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("extracted_\(Int(Date().timeIntervalSince1970)).m4a")
-
         try? FileManager.default.removeItem(at: exportURL)
 
         guard let exporter = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
@@ -94,9 +96,78 @@ final class SpeechTranscriber: ObservableObject {
         }
     }
 
-    // MARK: - WAV conversion (16 kHz, mono, PCM)
+    // MARK: - Recognition (main-actor-safe)
 
-    private func convertToWav(source: URL) throws -> URL {
+    private func recognize(from url: URL) async throws -> String {
+        guard let recognizer = SFSpeechRecognizer(), recognizer.isAvailable else {
+            throw TranscriptionError.unavailable
+        }
+
+        let request = SFSpeechURLRecognitionRequest(url: url)
+        request.shouldReportPartialResults = false
+        request.taskHint = .dictation
+
+        return try await withCheckedThrowingContinuation { continuation in
+            var didResume = false
+
+            let recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
+                guard let self else { return }
+                // Hop to main so the double-resume guard is race-free.
+                Task { @MainActor in
+                    guard !didResume else { return }
+                    didResume = true
+
+                    if let result, result.isFinal {
+                        let text = result.bestTranscription.formattedString
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        if text.isEmpty {
+                            continuation.resume(throwing: TranscriptionError.noResult)
+                        } else {
+                            continuation.resume(returning: text)
+                        }
+                    } else if let error {
+                        let nse = error as NSError
+                        let speechErrorCodes: [Int] = [203, 216, 301, 1110, 1111, 1115]
+                        if nse.domain == "kAFAssistantErrorDomain" || speechErrorCodes.contains(nse.code) {
+                            continuation.resume(throwing: TranscriptionError.noResult)
+                        } else {
+                            continuation.resume(throwing: error)
+                        }
+                    } else {
+                        continuation.resume(throwing: TranscriptionError.noResult)
+                    }
+                }
+            }
+
+            // Timeout safety net.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 120) {
+                Task { @MainActor in
+                    guard !didResume else { return }
+                    didResume = true
+                    recognitionTask.cancel()
+                    continuation.resume(throwing: TranscriptionError.timedOut)
+                }
+            }
+        }
+    }
+
+    // MARK: - Permission
+
+    private func requestPermission() async -> Bool {
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { status in
+                Task { @MainActor in
+                    continuation.resume(returning: status == .authorized)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Pure conversion helpers (no UI state, safe off main)
+
+enum AudioConverterHelper {
+    static func convertToWav(source: URL) throws -> URL {
         let targetRate = 16000.0
         let targetChannels: AVAudioChannelCount = 1
 
@@ -123,14 +194,10 @@ final class SpeechTranscriber: ObservableObject {
             throw TranscriptionError.conversionFailed
         }
 
-        guard let srcBuffer = AVAudioPCMBuffer(
-            pcmFormat: srcFormat, frameCapacity: 16384
-        ) else {
+        guard let srcBuffer = AVAudioPCMBuffer(pcmFormat: srcFormat, frameCapacity: 16384) else {
             throw TranscriptionError.conversionFailed
         }
-        guard let destBuffer = AVAudioPCMBuffer(
-            pcmFormat: destFormat, frameCapacity: 16384
-        ) else {
+        guard let destBuffer = AVAudioPCMBuffer(pcmFormat: destFormat, frameCapacity: 16384) else {
             throw TranscriptionError.conversionFailed
         }
 
@@ -149,86 +216,19 @@ final class SpeechTranscriber: ObservableObject {
             }
         }
 
-        var outError: NSError?
-        var status = converter.convert(to: destBuffer, error: &outError, withInputFrom: inputBlock)
-
-        while status != .endOfStream {
+        var status = converter.convert(to: destBuffer, error: nil, withInputFrom: inputBlock)
+        while status == .haveData || status == .inputRanDry {
             if status == .haveData, destBuffer.frameLength > 0 {
                 try destFile.write(from: destBuffer)
             }
             destBuffer.frameLength = 0
-            status = converter.convert(to: destBuffer, error: &outError, withInputFrom: inputBlock)
+            status = converter.convert(to: destBuffer, error: nil, withInputFrom: inputBlock)
         }
 
         let attributes = try FileManager.default.attributesOfItem(atPath: destURL.path)
         if let size = attributes[.size] as? Int, size < 100 {
             throw TranscriptionError.conversionFailed
         }
-
         return destURL
-    }
-
-    // MARK: - Recognition
-
-    private func recognize(from url: URL) async throws -> String {
-        guard let recognizer = SFSpeechRecognizer(), recognizer.isAvailable else {
-            throw TranscriptionError.unavailable
-        }
-
-        let request = SFSpeechURLRecognitionRequest(url: url)
-        request.shouldReportPartialResults = false
-        request.taskHint = .dictation
-
-        return try await withCheckedThrowingContinuation { continuation in
-            var didResume = false
-            let task = recognizer.recognitionTask(with: request) { result, error in
-                guard !didResume else { return }
-                didResume = true
-
-                if let result = result, result.isFinal {
-                    let text = result.bestTranscription.formattedString
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    if text.isEmpty {
-                        continuation.resume(throwing: TranscriptionError.noResult)
-                    } else {
-                        continuation.resume(returning: text)
-                    }
-                } else if let error = error {
-                    // Speech framework returns "no speech heard" as an unavailable/recognition error.
-                    let nsErr = error as NSError
-                    if nsErr.code == 216 // "no speech heard"
-                        || nsErr.domain == "kAFAssistantErrorDomain" && nsErr.code == 203
-                        || nsErr.code == 1110 // recognizedTextAlignment or timeout-ish
-                        || nsErr.code == 1111 {
-                        continuation.resume(throwing: TranscriptionError.noResult)
-                    } else if nsErr.code == 301 {
-                        continuation.resume(throwing: TranscriptionError.noResult)
-                    } else {
-                        continuation.resume(throwing: error)
-                    }
-                } else {
-                    continuation.resume(throwing: TranscriptionError.noResult)
-                }
-            }
-
-            // Safety timeout - some files hang.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 90) {
-                if !didResume {
-                    didResume = true
-                    task.cancel()
-                    continuation.resume(throwing: TranscriptionError.timedOut)
-                }
-            }
-        }
-    }
-
-    // MARK: - Permission
-
-    private func requestPermission() async -> Bool {
-        await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { status in
-                continuation.resume(returning: status == .authorized)
-            }
-        }
     }
 }

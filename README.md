@@ -1,49 +1,52 @@
 # brat text generator — iOS 🍃
 
-Aplikacja iOS, która transkrybuje audio/film i generuje viralowe teksty w stylu "brat".
+Turn your voice into viral lyrics. `brat text` transcribes audio/video on-device and generates brat-style lyric cards ready to share.
 
-## Funkcje
+## Features
 
-- Import pliku audio **lub filmu** (mp3, wav, m4a • mp4, mov) albo nagranie z mikrofonu
-- Transkrypcja na urządzeniu dzięki Speech framework (Apple) — z filmów automatycznie wyciąga ścieżkę audio
-- Generowanie viralowych tekstów w stylu brat:
-  - **Lyrics w kwadracie** — gotowy do udostępnienia (zapis jako obraz do galerii)
-  - viral hook / brat energy / relatable / quick post
-- Kopiowanie tekstów do schowka jednym dotknięciem, zapis kwadratu jako obraz
-- Odtwarzanie wybranego audio/filmu
+- **Import from gallery** — pick any video (mp4, mov, m4v…) or record straight from the mic
+- **On-device transcription** (Apple Speech framework) — video audio is extracted automatically, then converted to the cleanest WAV format for reliable results
+- **Viral lyric card** — square shareable card with a vibe hashtag, footer hook and emoji; save it as an image to your gallery
+- **Variants** — each run drops a stack of fresh captions: viral hook, brat energy, relatable, POV, story time and more (2–10 per run)
+- **Reshuffle** — re-roll the card and variants from the same transcript
+- **History** — your past lyric cards are saved locally, browse, reuse and delete them
+- **Settings** — accent theme (brat / purple / fire), card style, lowercase everything, emojis, haptics, variants per run
+- **Share & copy** — copy transcripts, cards or single variants; share text anywhere
+- **Playback** — preview the selected audio/video before generating
 
-## Wymagania
+## Requirements
 
-- macOS z Xcode 15+
-- iPhone z iOS 17+
-- Konto Apple Developer (do podpisu aplikacji na urządzeniu)
+- macOS with Xcode 15+
+- iPhone with iOS 17+
+- Apple Developer account (to sign the app for a device)
 
-## Budowanie
+## Building
 
-1. Otwórz `BratText.xcodeproj` w Xcode
-2. Wybierz swój team w Signing & Capabilities (zakładka projektu)
-3. Uruchom na symulatorze lub podłączonym iPhonie
+1. Open `BratText.xcodeproj` in Xcode
+2. Pick your team under Signing & Capabilities
+3. Run on a simulator or a connected iPhone
 
 ## Release / sideload
 
-1. Pobierz `BratText.ipa` z zakładki **Releases** (build z GitHub Actions)
-2. Podpisz i zainstaluj narzędziem: **Sideloadly**, **AltStore** lub **Apple Configurator 2**
-3. Aplikacja bez podpisu dev — po 7 dniach wymaga ponownej instalacji
+1. Grab `BratText.ipa` from the **Releases** tab (built by GitHub Actions)
+2. Sign & install with **Sideloadly**, **AltStore** or **Apple Configurator 2**
+3. The unsigned build needs re-installation after 7 days
 
-## Struktura
+## Structure
 
-- `BratText/BratGenerator.swift` — logika generowania tekstów i lyrics w stylu brat
-- `BratText/SpeechTranscriber.swift` — transkrypcja audio/wideo przez Speech framework
-- `BratText/AudioRecorder.swift` — nagrywanie i odtwarzanie audio
-- `BratText/ContentView.swift` — interfejs użytkownika (SwiftUI) z kwadratową kartą lyrics
+- `BratText/BratGenerator.swift` — lyric + caption generation logic (EN/PL hooks)
+- `BratText/SpeechTranscriber.swift` — audio/video transcription via Speech framework
+- `BratText/SettingsStore.swift` — user settings & history persistence
+- `BratText/AudioRecorder.swift` — recording and playback
+- `BratText/ContentView.swift` — SwiftUI interface, lyric card, settings & history screens
 
-## Uwagi
+## Notes
 
-- Transkrypcja działa w języku urządzenia (wspiera polski)
-- Rozpoznawanie mowy wymaga Internetu
-- Pierwsze użycie poprosi o zgodę na mikrofon i rozpoznawanie mowy
-- Wideo: wyciągany jest dźwięk (AVAssetExportSession do m4a) i dopiero transkrybowany
+- Transcription matches your device language (polish supported)
+- Speech recognition requires an internet connection
+- First run asks for mic + speech recognition permission
+- Videos: audio is exported (AVAssetExportSession → m4a), then normalized to WAV PCM 16 kHz mono before transcription
 
-## Licencja
+## License
 
 MIT

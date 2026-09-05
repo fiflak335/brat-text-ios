@@ -62,6 +62,11 @@ final class AudioPlayer: NSObject, ObservableObject {
             isPlaying = false
         }
     }
+
+    func stop() {
+        player?.stop()
+        isPlaying = false
+    }
 }
 
 extension AudioPlayer: AVAudioPlayerDelegate {

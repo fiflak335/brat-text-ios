@@ -13,6 +13,7 @@
 		2A0000000000000000000004 /* SpeechTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000000000000000000004 /* SpeechTranscriber.swift */; };
 		2A0000000000000000000005 /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000000000000000000005 /* AudioRecorder.swift */; };
 		2A0000000000000000000006 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A0000000000000000000006 /* Assets.xcassets */; };
+		2A0000000000000000000007 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000000000000000000009 /* SettingsStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +25,7 @@
 		1A0000000000000000000006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1A0000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		1A0000000000000000000008 /* BratText.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BratText.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1A0000000000000000000009 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,6 +55,7 @@
 				1A0000000000000000000003 /* BratGenerator.swift */,
 				1A0000000000000000000004 /* SpeechTranscriber.swift */,
 				1A0000000000000000000005 /* AudioRecorder.swift */,
+				1A0000000000000000000009 /* SettingsStore.swift */,
 				1A0000000000000000000006 /* Assets.xcassets */,
 				1A0000000000000000000007 /* Info.plist */,
 			);
@@ -141,6 +144,7 @@
 				2A0000000000000000000003 /* BratGenerator.swift in Sources */,
 				2A0000000000000000000004 /* SpeechTranscriber.swift in Sources */,
 				2A0000000000000000000005 /* AudioRecorder.swift in Sources */,
+				2A0000000000000000000007 /* SettingsStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
