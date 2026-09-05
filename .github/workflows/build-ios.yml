@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build app (unsigned)
+      - name: Build app (ad-hoc signed)
         run: |
           xcodebuild \
             -project BratText.xcodeproj \
@@ -20,8 +20,10 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             SYMROOT=build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            DEVELOPMENT_TEAM="" \
             build
 
       - name: Package .ipa
@@ -46,4 +48,4 @@ jobs:
             BratText.ipa \
             --repo "${{ github.repository }}" \
             --title "brat text generator iOS — build #${{ github.run_number }}" \
-            --notes "Unsigned .ipa. Sideload with AltStore, Sideloadly or Apple Configurator 2."
+            --notes "Ad-hoc signed .ipa (with app icon). Sideload with AltStore, Sideloadly or Apple Configurator 2 — they will re-sign with your Apple ID."
