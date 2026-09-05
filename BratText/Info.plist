@@ -22,6 +22,8 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Aplikacja używa mikrofonu, aby nagrać Twoje audio do wygenerowania viralowych brat tekstów.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Aplikacja zapisuje gotowy obraz z lyrics do Twojej galerii.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Aplikacja używa rozpoznawania mowy, aby przetworzyć Twoje audio na tekst.</string>
 	<key>UILaunchScreen</key>
