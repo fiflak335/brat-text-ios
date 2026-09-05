@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import UIKit
 
 struct ContentView: View {
     @StateObject private var transcriber = SpeechTranscriber()
@@ -7,8 +8,10 @@ struct ContentView: View {
 
     @State private var selectedURL: URL?
     @State private var fileName = ""
+    @State private var isVideo = false
 
     @State private var transcription = ""
+    @State private var lyricCard: LyricCard?
     @State private var bratTexts: [BratText] = []
     @State private var isLoading = false
     @State private var showImporter = false
@@ -17,36 +20,44 @@ struct ContentView: View {
     @StateObject private var recorder = AudioRecorder()
 
     private let bratGreen = Color(red: 0.54, green: 0.81, blue: 0.0)
+    private let bgDeep = Color(red: 0.06, green: 0.06, blue: 0.10)
     private let bgDark = Color(red: 0.10, green: 0.10, blue: 0.18)
     private let cardDark = Color(red: 0.14, green: 0.16, blue: 0.28)
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 22) {
                     header
                     uploadArea
                     actionButton
                     transcriptSection
+                    lyricSection
                     resultsSection
                 }
-                .padding()
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
             }
-            .background(bgDark.ignoresSafeArea())
+            .background(
+                LinearGradient(
+                    colors: [bgDeep, bgDark.opacity(0.9)],
+                    startPoint: .top, endPoint: .bottom
+                ).ignoresSafeArea()
+            )
             .preferredColorScheme(.dark)
             .toolbar(.hidden, for: .navigationBar)
         }
         .tint(bratGreen)
         .fileImporter(
             isPresented: $showImporter,
-            allowedContentTypes: [.audio],
+            allowedContentTypes: [.audiovisualContent],
             allowsMultipleSelection: false
         ) { result in
             handleImport(result)
         }
         .sheet(isPresented: $showRecorder) {
             RecorderView(recorder: recorder) { url in
-                selectFile(url: url, name: "nagranie.m4a")
+                selectFile(url: url, name: "nagranie.m4a", isVideo: false)
             }
         }
         .alert("Błąd", isPresented: Binding(
@@ -60,27 +71,27 @@ struct ContentView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             Text("🍃")
-                .font(.system(size: 48))
-            Text("brat text generator")
-                .font(.largeTitle.bold())
-                .multilineTextAlignment(.center)
+                .font(.system(size: 44))
+            Text("brat text")
+                .font(.system(size: 40, weight: .black, design: .rounded))
                 .foregroundStyle(bratGreen)
-            Text("wgraj audio i dostaj viralowe teksty")
+            Text("wgraj audio albo film — dostajesz viralowe lyrics")
                 .font(.subheadline)
                 .foregroundStyle(.gray)
+                .multilineTextAlignment(.center)
         }
         .padding(.top, 24)
     }
 
     private var uploadArea: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             if isLoading {
                 ProgressView("transkrybuję...")
                     .tint(bratGreen)
-                    .padding(.vertical, 30)
-            } else if let _ = selectedURL {
+                    .padding(.vertical, 40)
+            } else if selectedURL != nil {
                 selectedFileCard
             } else {
                 emptyUploadArea
@@ -89,58 +100,68 @@ struct ContentView: View {
     }
 
     private var emptyUploadArea: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 16) {
-                Button {
+        VStack(spacing: 14) {
+            HStack(spacing: 14) {
+                uploadButton(title: "importuj", icon: "folder.badge.plus", desc: "audio lub film") {
                     showImporter = true
-                } label: {
-                    VStack(spacing: 8) {
-                        Image(systemName: "folder.badge.plus")
-                            .font(.system(size: 34))
-                        Text("importuj")
-                            .font(.headline)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                    .background(cardDark)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
-                .buttonStyle(.plain)
-
-                Button {
+                uploadButton(title: "nagraj", icon: "mic.fill", desc: "z mikrofonu") {
                     showRecorder = true
-                } label: {
-                    VStack(spacing: 8) {
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 34))
-                        Text("nagraj")
-                            .font(.headline)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                    .background(cardDark)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
-                .buttonStyle(.plain)
             }
-
-            Text("mp3, wav, m4a — albo nagraj od razu")
+            Text("mp3, wav, m4a • mp4, mov")
                 .font(.caption)
                 .foregroundStyle(.gray)
         }
     }
 
+    private func uploadButton(title: String, icon: String, desc: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(bratGreen.opacity(0.15))
+                        .frame(width: 64, height: 64)
+                    Image(systemName: icon)
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(bratGreen)
+                }
+                Text(title)
+                    .font(.headline)
+                Text(desc)
+                    .font(.caption2)
+                    .foregroundStyle(.gray)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(cardDark.opacity(0.7))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(bratGreen.opacity(0.25), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private var selectedFileCard: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Image(systemName: "waveform")
-                    .font(.title2)
-                VStack(alignment: .leading) {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(bratGreen.opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: isVideo ? "film.fill" : "waveform")
+                        .font(.system(size: 20))
+                        .foregroundStyle(bratGreen)
+                }
+                VStack(alignment: .leading, spacing: 2) {
                     Text(fileName)
                         .font(.headline)
                         .lineLimit(1)
-                    Text(URL(fileURLWithPath: fileName).pathExtension.isEmpty
-                         ? "" : "gotowe do generowania")
+                    Text(isVideo ? "film • wideo" : "audio")
                         .font(.caption)
                         .foregroundStyle(.gray)
                 }
@@ -149,22 +170,26 @@ struct ContentView: View {
                     audioPlayer.toggle(url: selectedURL!)
                 } label: {
                     Image(systemName: audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.title)
+                        .font(.system(size: 30))
+                        .foregroundStyle(bratGreen)
                 }
                 Button {
-                    selectedURL = nil
-                    fileName = ""
-                    transcription = ""
-                    bratTexts = []
+                    clearSelection()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.title)
+                        .font(.system(size: 24))
                         .foregroundStyle(.gray)
                 }
             }
             .padding()
-            .background(cardDark)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(cardDark.opacity(0.7))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(bratGreen.opacity(0.25), lineWidth: 1)
+                    )
+            )
         }
     }
 
@@ -172,16 +197,24 @@ struct ContentView: View {
         Button {
             generate()
         } label: {
-            HStack {
+            HStack(spacing: 8) {
                 Image(systemName: "sparkles")
-                Text("generuj brat text 🍃")
+                Text("generuj lyrics 🍃")
                     .font(.headline)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(selectedURL != nil && !isLoading ? bratGreen : Color(.systemGray4))
-            .foregroundStyle(selectedURL != nil && !isLoading ? Color(red: 0.1, green: 0.1, blue: 0.18) : .gray)
-            .clipShape(Capsule())
+            .background(
+                Capsule().fill(
+                    selectedURL != nil && !isLoading
+                        ? AnyShapeStyle(LinearGradient(colors: [bratGreen, bratGreen.opacity(0.8)],
+                                                        startPoint: .leading, endPoint: .trailing))
+                        : AnyShapeStyle(Color(.systemGray4))
+                )
+            )
+            .foregroundStyle(selectedURL != nil && !isLoading ? Color.black : .gray)
+            .shadow(color: selectedURL != nil && !isLoading ? bratGreen.opacity(0.4) : .clear,
+                    radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
         .disabled(selectedURL == nil || isLoading)
@@ -191,14 +224,29 @@ struct ContentView: View {
     private var transcriptSection: some View {
         if !transcription.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                Text("📝 transkrypcja")
-                    .font(.headline)
-                    .foregroundStyle(bratGreen)
+                sectionHeader("📝 transkrypcja")
                 Text(transcription)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                    .background(cardDark)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(cardDark.opacity(0.7))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(bratGreen.opacity(0.2), lineWidth: 1)
+                            )
+                    )
+                    .font(.body)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var lyricSection: some View {
+        if let card = lyricCard {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionHeader("🎵 lyrics do udostępnienia")
+                LyricCardView(card: card, bratGreen: bratGreen, cardDark: cardDark)
             }
         }
     }
@@ -207,15 +255,18 @@ struct ContentView: View {
     private var resultsSection: some View {
         if !bratTexts.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                Text("🍃 viralowe teksty")
-                    .font(.headline)
-                    .foregroundStyle(bratGreen)
-
+                sectionHeader("🍃 więcej wariantów")
                 ForEach(bratTexts) { item in
-                    BratCardView(item: item)
+                    BratCardView(item: item, bratGreen: bratGreen, cardDark: cardDark)
                 }
             }
         }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.headline)
+            .foregroundStyle(bratGreen)
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {
@@ -223,7 +274,9 @@ struct ContentView: View {
         case .success(let urls):
             guard let url = urls.first else { return }
             let accessing = url.startAccessingSecurityScopedResource()
-            selectFile(url: url, name: url.lastPathComponent)
+            selectFile(url: url, name: url.lastPathComponent,
+                       isVideo: url.pathExtension.lowercased() == "video"
+                           || ["mp4", "mov", "m4v", "avi", "mkv", "3gp"].contains(url.pathExtension.lowercased()))
             if accessing {
                 url.stopAccessingSecurityScopedResource()
             }
@@ -232,9 +285,9 @@ struct ContentView: View {
         }
     }
 
-    private func selectFile(url: URL, name: String) {
+    private func selectFile(url: URL, name: String, isVideo: Bool) {
         let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(name)
+            .appendingPathComponent("\(Int(Date().timeIntervalSince1970))_\(name)")
         do {
             if FileManager.default.fileExists(atPath: tempURL.path) {
                 try FileManager.default.removeItem(at: tempURL)
@@ -242,17 +295,29 @@ struct ContentView: View {
             try FileManager.default.copyItem(at: url, to: tempURL)
             selectedURL = tempURL
             fileName = name
+            self.isVideo = isVideo
             transcription = ""
+            lyricCard = nil
             bratTexts = []
         } catch {
             errorMessage = "Nie udało się odczytać pliku: \(error.localizedDescription)"
         }
     }
 
+    private func clearSelection() {
+        selectedURL = nil
+        fileName = ""
+        isVideo = false
+        transcription = ""
+        lyricCard = nil
+        bratTexts = []
+    }
+
     private func generate() {
         guard let url = selectedURL else { return }
         isLoading = true
         transcription = ""
+        lyricCard = nil
         bratTexts = []
 
         Task {
@@ -260,7 +325,11 @@ struct ContentView: View {
                 let text = try await transcriber.transcribe(url: url)
                 await MainActor.run {
                     transcription = text
-                    bratTexts = BratGenerator.generate(from: text)
+                    let generated = BratGenerator.generate(from: text)
+                    lyricCard = LyricCard(title: generated.lyricTitle,
+                                          lines: generated.lyricLines,
+                                          footer: generated.lyricFooter)
+                    bratTexts = generated.alternatives
                     isLoading = false
                 }
             } catch {
@@ -273,12 +342,176 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Models
+
+struct LyricCard: Identifiable {
+    let id = UUID()
+    let title: String
+    let lines: [String]
+    let footer: String
+}
+
+// MARK: - Lyric Card View
+
+struct LyricCardView: View {
+    let card: LyricCard
+    let bratGreen: Color
+    let cardDark: Color
+
+    @State private var saved = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Gradient header strip
+            Rectangle()
+                .fill(
+                    LinearGradient(colors: [bratGreen, bratGreen.opacity(0.6), Color.purple.opacity(0.8)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+                .frame(height: 10)
+
+            // Square card
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer(minLength: 0)
+
+                // Top watermark
+                HStack {
+                    Text("🍃")
+                        .font(.system(size: 28))
+                    Spacer()
+                    Text("brat text")
+                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .foregroundStyle(bratGreen)
+                }
+                .padding(.horizontal, 18)
+
+                Spacer()
+
+                // Lyrics lines (last portion, centered)
+                VStack(alignment: .center, spacing: 10) {
+                    ForEach(Array(card.lines.enumerated()), id: \.offset) { _, line in
+                        Text(line == " " ? "\u{00A0}" : line)
+                            .font(.system(size: 22, weight: line.hasPrefix("#") ? .heavy : .semibold, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.white.opacity(0.95))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 18)
+
+                Spacer()
+
+                // Footer
+                HStack {
+                    Text(card.footer)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(bratGreen)
+                    Spacer()
+                    Text("♪")
+                        .font(.system(size: 22))
+                        .foregroundStyle(bratGreen)
+                }
+                .padding(.horizontal, 18)
+                .padding(.bottom, 16)
+            }
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1, contentMode: .fit)
+            .background(
+                Color.black
+                    .overlay(
+                        LinearGradient(colors: [cardDark.opacity(0.9), .black],
+                                       startPoint: .top, endPoint: .bottom)
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 22))
+
+            // Save button
+            Button {
+                saveCard()
+            } label: {
+                Label(saved ? "zapisane!" : "zapisz jako obraz", systemImage: saved ? "checkmark.circle.fill" : "square.and.arrow.down")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        Capsule().fill(bratGreen.opacity(saved ? 0.9 : 0.15))
+                    )
+                    .foregroundStyle(saved ? .black : bratGreen)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 12)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 24)
+                .fill(cardDark.opacity(0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(bratGreen.opacity(0.25), lineWidth: 1)
+                )
+        )
+    }
+
+    private func saveCard() {
+        let renderer = ImageRenderer(content: lyricContent())
+        renderer.scale = UIScreen.main.scale
+        if let uiImage = renderer.uiImage {
+            UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
+            saved = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                saved = false
+            }
+        }
+    }
+
+    private func lyricContent() -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Rectangle()
+                .fill(LinearGradient(colors: [bratGreen, bratGreen.opacity(0.6), Color.purple.opacity(0.8)],
+                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(height: 12)
+            VStack {
+                Spacer()
+                HStack {
+                    Text("🍃").font(.system(size: 32))
+                    Spacer()
+                    Text("brat text").font(.system(size: 20, weight: .black, design: .rounded)).foregroundStyle(bratGreen)
+                }
+                .padding(.horizontal, 22)
+                Spacer()
+                VStack(spacing: 12) {
+                    ForEach(Array(card.lines.enumerated()), id: \.offset) { _, line in
+                        Text(line == " " ? "\u{00A0}" : line)
+                            .font(.system(size: 26, weight: line.hasPrefix("#") ? .heavy : .semibold, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.white.opacity(0.97))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 22)
+                Spacer()
+                HStack {
+                    Text(card.footer).font(.system(size: 18, weight: .bold, design: .rounded)).foregroundStyle(bratGreen)
+                    Spacer()
+                    Text("♪").font(.system(size: 24)).foregroundStyle(bratGreen)
+                }
+                .padding(.horizontal, 22)
+                .padding(.bottom, 20)
+            }
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1, contentMode: .fit)
+            .background(Color.black)
+        }
+    }
+}
+
+// MARK: - Brat Variant Card
+
 struct BratCardView: View {
     let item: BratText
+    let bratGreen: Color
+    let cardDark: Color
     @State private var copied = false
-
-    private let bratGreen = Color(red: 0.54, green: 0.81, blue: 0.0)
-    private let cardDark = Color(red: 0.14, green: 0.16, blue: 0.28)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -309,7 +542,7 @@ struct BratCardView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            LinearGradient(colors: [cardDark, cardDark.opacity(0.6)],
+            LinearGradient(colors: [cardDark.opacity(0.7), cardDark.opacity(0.4)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -319,6 +552,8 @@ struct BratCardView: View {
         )
     }
 }
+
+// MARK: - Recorder
 
 struct RecorderView: View {
     @ObservedObject var recorder: AudioRecorder
@@ -331,7 +566,6 @@ struct RecorderView: View {
         VStack(spacing: 30) {
             Text(recorder.isRecording ? "nagrywam... 🎙️" : "gotowy do nagrania")
                 .font(.title2.bold())
-
             Button {
                 if recorder.isRecording {
                     if let url = recorder.stopRecording() {

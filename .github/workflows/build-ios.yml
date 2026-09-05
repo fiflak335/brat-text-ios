@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build app (ad-hoc signed)
+      - name: Build app (unsigned)
         run: |
           xcodebuild \
             -project BratText.xcodeproj \
@@ -20,10 +20,8 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             SYMROOT=build \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=YES \
-            CODE_SIGNING_ALLOWED=YES \
-            DEVELOPMENT_TEAM="" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
             build
 
       - name: Package .ipa
