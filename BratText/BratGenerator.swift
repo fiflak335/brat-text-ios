@@ -45,7 +45,7 @@ enum BratGenerator {
     ]
 
     static func generate(from transcription: String) -> [BratText] {
-        var sentences = transcription
+        let sentences = transcription
             .components(separatedBy: CharacterSet(charactersIn: ".!?"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }

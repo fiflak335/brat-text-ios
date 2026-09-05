@@ -222,10 +222,11 @@ struct ContentView: View {
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }
-            if url.startAccessingSecurityScopedResource() {
-                defer { url.stopAccessingSecurityScopedResource() }
-            }
+            let accessing = url.startAccessingSecurityScopedResource()
             selectFile(url: url, name: url.lastPathComponent)
+            if accessing {
+                url.stopAccessingSecurityScopedResource()
+            }
         case .failure(let error):
             errorMessage = error.localizedDescription
         }

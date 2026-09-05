@@ -58,13 +58,9 @@ final class SpeechTranscriber: ObservableObject {
     }
 
     private func requestPermission() async -> Bool {
-        if #available(iOS 17.0, *) {
-            return await SFSpeechRecognizer.requestAuthorization() == .authorized
-        } else {
-            return await withCheckedContinuation { continuation in
-                SFSpeechRecognizer.requestAuthorization { status in
-                    continuation.resume(returning: status == .authorized)
-                }
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { status in
+                continuation.resume(returning: status == .authorized)
             }
         }
     }
