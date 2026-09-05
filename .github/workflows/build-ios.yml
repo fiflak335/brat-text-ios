@@ -2,8 +2,6 @@ name: Build iOS .ipa
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 permissions:
   contents: write
@@ -21,7 +19,7 @@ jobs:
             -target BratText \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath build \
+            SYMROOT=build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build
@@ -29,7 +27,7 @@ jobs:
       - name: Package .ipa
         run: |
           mkdir -p Payload
-          cp -r "build/Build/Products/Release-iphoneos/BratText.app" Payload/
+          cp -r "build/Release-iphoneos/BratText.app" Payload/
           zip -qr BratText.ipa Payload
           ls -lh BratText.ipa
 
