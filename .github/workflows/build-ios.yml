@@ -1,0 +1,50 @@
+name: Build iOS .ipa
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build app (unsigned)
+        run: |
+          xcodebuild \
+            -project BratText.xcodeproj \
+            -target BratText \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Package .ipa
+        run: |
+          mkdir -p Payload
+          cp -r "build/Build/Products/Release-iphoneos/BratText.app" Payload/
+          zip -qr BratText.ipa Payload
+          ls -lh BratText.ipa
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BratText.ipa
+          path: BratText.ipa
+
+      - name: Publish GitHub Release
+        run: |
+          gh release create \
+            "brat-text-ios-${{ github.run_number }}" \
+            BratText.ipa \
+            --repo "${{ github.repository }}" \
+            --title "brat text generator iOS — build #${{ github.run_number }}" \
+            --notes "Unsigned .ipa. Sideload with AltStore, Sideloadly or Apple Configurator 2." \
+            ${{ github.event_name == 'workflow_dispatch' && '--draft=false' || '--draft' }}
