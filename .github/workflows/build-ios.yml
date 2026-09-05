@@ -46,5 +46,4 @@ jobs:
             BratText.ipa \
             --repo "${{ github.repository }}" \
             --title "brat text generator iOS — build #${{ github.run_number }}" \
-            --notes "Unsigned .ipa. Sideload with AltStore, Sideloadly or Apple Configurator 2." \
-            ${{ github.event_name == 'workflow_dispatch' && '--draft=false' || '--draft' }}
+            --notes "Unsigned .ipa. Sideload with AltStore, Sideloadly or Apple Configurator 2."
