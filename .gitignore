@@ -1,0 +1,18 @@
+// macOS
+.DS_Store
+
+// Xcode
+xcuserdata/
+DerivedData/
+*.xcuserstate
+
+// Swift Package Manager
+.build/
+.build/
+.swiftpm/
+
+// CocoaPods
+Pods/
+
+// Environments
+.env
