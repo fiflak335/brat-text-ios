@@ -373,28 +373,18 @@ struct ContentView: View {
     private func loadMovie(from item: PhotosPickerItem) {
         Task {
             do {
-                let provider = item.itemProvider
-                guard provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) else {
+                guard let data = try await item.loadTransferable(type: Data.self) else {
                     throw TranscriptionError.noResult
                 }
-                let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("picked_\(Int(Date().timeIntervalSince1970))")
-
-                let movieURL = try await withCheckedThrowingContinuation { continuation in
-                    provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, error in
-                        if let url {
-                            continuation.resume(returning: url)
-                        } else {
-                            continuation.resume(throwing: error ?? TranscriptionError.noResult)
-                        }
-                    }
-                }
-                if FileManager.default.fileExists(atPath: tempURL.path) {
-                    try FileManager.default.removeItem(at: tempURL)
-                }
-                try FileManager.default.copyItem(at: movieURL, to: tempURL)
+                let contentTypes = item.supportedContentTypes
+                let ext = contentTypes.first(where: { $0.conforms(to: .mpeg4Movie) })?.preferredFilenameExtension
+                    ?? contentTypes.first?.preferredFilenameExtension
+                    ?? "mov"
+                let url = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("picked_\(Int(Date().timeIntervalSince1970)).\(ext)")
+                try data.write(to: url)
                 await MainActor.run {
-                    selectFile(url: tempURL, name: movieURL.lastPathComponent, isVideo: true)
+                    selectFile(url: url, name: "film.\(ext)", isVideo: true)
                 }
             } catch {
                 await MainActor.run {
