@@ -144,7 +144,7 @@ final class SpeechTranscriber: ObservableObject {
                 outStatus.pointee = .haveData
                 return srcBuffer
             } catch {
-                outStatus.pointee = .error
+                outStatus.pointee = .endOfStream
                 return nil
             }
         }
@@ -158,6 +158,11 @@ final class SpeechTranscriber: ObservableObject {
             }
             destBuffer.frameLength = 0
             status = converter.convert(to: destBuffer, error: &outError, withInputFrom: inputBlock)
+        }
+
+        let attributes = try FileManager.default.attributesOfItem(atPath: destURL.path)
+        if let size = attributes[.size] as? Int, size < 100 {
+            throw TranscriptionError.conversionFailed
         }
 
         return destURL

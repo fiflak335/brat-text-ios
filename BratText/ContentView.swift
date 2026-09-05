@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var transcriber = SpeechTranscriber()
@@ -372,19 +373,28 @@ struct ContentView: View {
     private func loadMovie(from item: PhotosPickerItem) {
         Task {
             do {
-                guard let movie = try await item.loadTransferable(type: Movie.self) else {
+                let provider = item.itemProvider
+                guard provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) else {
                     throw TranscriptionError.noResult
                 }
-                let url = movie.url
-                let ext = url.pathExtension.isEmpty ? "mov" : url.pathExtension
-                let dest = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("picked_\(Int(Date().timeIntervalSince1970)).\(ext)")
-                if FileManager.default.fileExists(atPath: dest.path) {
-                    try FileManager.default.removeItem(at: dest)
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("picked_\(Int(Date().timeIntervalSince1970))")
+
+                let movieURL = try await withCheckedThrowingContinuation { continuation in
+                    provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, error in
+                        if let url {
+                            continuation.resume(returning: url)
+                        } else {
+                            continuation.resume(throwing: error ?? TranscriptionError.noResult)
+                        }
+                    }
                 }
-                try FileManager.default.copyItem(at: url, to: dest)
+                if FileManager.default.fileExists(atPath: tempURL.path) {
+                    try FileManager.default.removeItem(at: tempURL)
+                }
+                try FileManager.default.copyItem(at: movieURL, to: tempURL)
                 await MainActor.run {
-                    selectFile(url: dest, name: "film.\(ext)", isVideo: true)
+                    selectFile(url: tempURL, name: movieURL.lastPathComponent, isVideo: true)
                 }
             } catch {
                 await MainActor.run {
